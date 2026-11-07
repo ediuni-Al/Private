@@ -1,3 +1,23 @@
+ご提示いただいたHTML（`edi_phone.htm`）に以下の修正を加えました。
+
+### 主な修正内容
+
+1. **編集画面での並べ替え機能（上移動・下移動ボタン）を追加**
+* **トップボタン群**、**セクション（カラム）**、**各セクション内のリンク**のすべてに `▲`（上へ）/ `▼`（下へ）ボタンを追加し、項目順を自由に変更できるようにしました。
+
+
+2. **トップボタン群への「強制改行」追加機能**
+* トップボタン編集枠内に「+ 改行を追加」ボタンを設置しました。
+* 改行要素の行間（高さpx指定）の設定および削除・移動ができるように対応しました。
+* エディタ保存時にも `type: "break"` データの保持・更新が行われるようにJSロジックを修正しました。
+
+
+
+---
+
+### 修正後のコード
+
+```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -301,6 +321,7 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 0.8rem;
+            white-space: nowrap;
         }
         .action-sm-btn.danger {
             background: #ffcccc;
@@ -317,6 +338,7 @@
             cursor: pointer;
             font-size: 0.85rem;
             margin-top: 5px;
+            margin-right: 5px;
         }
 
         .save-btn {
@@ -332,9 +354,15 @@
             font-weight: bold;
         }
 
+        .break-row {
+            background: var(--md-surface-variant);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
         @media (max-width: 600px) {
             .link-list { grid-template-columns: 1fr 1fr; }
-            .edit-row { flex-direction: column; align-items: stretch; }
+            .edit-row { flex-wrap: wrap; }
         }
     </style>
 </head>
@@ -393,6 +421,17 @@
     document.getElementById('btn-settings').addEventListener('click', () => settingsModal.style.display = 'flex');
     document.getElementById('close-settings').addEventListener('click', () => settingsModal.style.display = 'none');
     document.getElementById('close-editor').addEventListener('click', () => editorModal.style.display = 'none');
+
+    // 並べ替え（移動）補助関数
+    function moveElement(btn, direction) {
+        const row = btn.closest('.edit-row, .sec-item-box');
+        if (!row) return;
+        if (direction === 'up' && row.previousElementSibling) {
+            row.parentNode.insertBefore(row, row.previousElementSibling);
+        } else if (direction === 'down' && row.nextElementSibling) {
+            row.parentNode.insertBefore(row.nextElementSibling, row);
+        }
+    }
 
     // テーマ切替
     document.getElementById('btn-toggle-theme').addEventListener('click', () => {
@@ -540,18 +579,31 @@
         const chipsList = document.createElement('div');
         chipsList.id = 'editor-chips-list';
         
-        (currentData.direct_buttons || []).forEach((item, idx) => {
+        (currentData.direct_buttons || []).forEach((item) => {
             if (item.type === 'link') {
                 const row = document.createElement('div');
                 row.className = 'edit-row chip-row';
-                row.dataset.index = idx;
-                row.innerHTML = `<input type="text" class="c-label" value="${item.label}" placeholder="ラベル">
+                row.dataset.type = 'link';
+                row.innerHTML = `<button type="button" class="action-sm-btn" onclick="moveElement(this, 'up')">▲</button>
+                                 <button type="button" class="action-sm-btn" onclick="moveElement(this, 'down')">▼</button>
+                                 <input type="text" class="c-label" value="${item.label}" placeholder="ラベル">
                                  <input type="text" class="c-url" value="${item.url}" placeholder="URL">
+                                 <button type="button" class="action-sm-btn danger" onclick="this.parentElement.remove()">削除</button>`;
+                chipsList.appendChild(row);
+            } else if (item.type === 'break') {
+                const row = document.createElement('div');
+                row.className = 'edit-row chip-row break-row';
+                row.dataset.type = 'break';
+                row.innerHTML = `<button type="button" class="action-sm-btn" onclick="moveElement(this, 'up')">▲</button>
+                                 <button type="button" class="action-sm-btn" onclick="moveElement(this, 'down')">▼</button>
+                                 <span style="font-weight:bold; font-size:0.85rem;">[強制改行]</span>
+                                 <label style="font-size:0.8rem;">高さ: <input type="text" class="c-height" value="${item.height || '5px'}" style="width:50px;"></label>
                                  <button type="button" class="action-sm-btn danger" onclick="this.parentElement.remove()">削除</button>`;
                 chipsList.appendChild(row);
             }
         });
         chipBox.appendChild(chipsList);
+
         const addChipBtn = document.createElement('button');
         addChipBtn.type = 'button';
         addChipBtn.className = 'add-btn';
@@ -559,12 +611,34 @@
         addChipBtn.onclick = () => {
             const row = document.createElement('div');
             row.className = 'edit-row chip-row';
-            row.innerHTML = `<input type="text" class="c-label" placeholder="ラベル (例: 🛒 Amazon)">
+            row.dataset.type = 'link';
+            row.innerHTML = `<button type="button" class="action-sm-btn" onclick="moveElement(this, 'up')">▲</button>
+                             <button type="button" class="action-sm-btn" onclick="moveElement(this, 'down')">▼</button>
+                             <input type="text" class="c-label" placeholder="ラベル (例: 🛒 Amazon)">
                              <input type="text" class="c-url" placeholder="URL">
                              <button type="button" class="action-sm-btn danger" onclick="this.parentElement.remove()">削除</button>`;
             chipsList.appendChild(row);
         };
         chipBox.appendChild(addChipBtn);
+
+        const addBreakBtn = document.createElement('button');
+        addBreakBtn.type = 'button';
+        addBreakBtn.className = 'add-btn';
+        addBreakBtn.style.background = '#e76f51';
+        addBreakBtn.textContent = '+ 改行を追加';
+        addBreakBtn.onclick = () => {
+            const row = document.createElement('div');
+            row.className = 'edit-row chip-row break-row';
+            row.dataset.type = 'break';
+            row.innerHTML = `<button type="button" class="action-sm-btn" onclick="moveElement(this, 'up')">▲</button>
+                             <button type="button" class="action-sm-btn" onclick="moveElement(this, 'down')">▼</button>
+                             <span style="font-weight:bold; font-size:0.85rem;">[強制改行]</span>
+                             <label style="font-size:0.8rem;">高さ: <input type="text" class="c-height" value="5px" style="width:50px;"></label>
+                             <button type="button" class="action-sm-btn danger" onclick="this.parentElement.remove()">削除</button>`;
+            chipsList.appendChild(row);
+        };
+        chipBox.appendChild(addBreakBtn);
+
         container.appendChild(chipBox);
 
         // 3. 各セクション（カラム）の編集 ＆ 新規カラム追加
@@ -576,7 +650,7 @@
 
         function renderSectionEditor() {
             secListContainer.innerHTML = '';
-            (currentData.sections || []).forEach((sec, sIndex) => {
+            (currentData.sections || []).forEach((sec) => {
                 const sDiv = document.createElement('div');
                 sDiv.style.border = '1px dashed var(--md-primary)';
                 sDiv.style.padding = '8px';
@@ -586,6 +660,8 @@
 
                 sDiv.innerHTML = `
                     <div class="edit-row">
+                        <button type="button" class="action-sm-btn" onclick="moveElement(this, 'up')">▲</button>
+                        <button type="button" class="action-sm-btn" onclick="moveElement(this, 'down')">▼</button>
                         <input type="text" class="sec-title" value="${sec.title}" placeholder="セクション名">
                         <label><input type="checkbox" class="sec-admin" ${sec.is_admin ? 'checked' : ''}> グレー表示</label>
                         <button type="button" class="action-sm-btn danger" onclick="this.closest('.sec-item-box').remove()">セクション削除</button>
@@ -596,7 +672,9 @@
                 (sec.links || []).forEach(l => {
                     const lRow = document.createElement('div');
                     lRow.className = 'edit-row link-row';
-                    lRow.innerHTML = `<input type="text" class="l-label" value="${l.label}" placeholder="タイトル">
+                    lRow.innerHTML = `<button type="button" class="action-sm-btn" onclick="moveElement(this, 'up')">▲</button>
+                                      <button type="button" class="action-sm-btn" onclick="moveElement(this, 'down')">▼</button>
+                                      <input type="text" class="l-label" value="${l.label}" placeholder="タイトル">
                                       <input type="text" class="l-url" value="${l.url}" placeholder="URL">
                                       <button type="button" class="action-sm-btn danger" onclick="this.parentElement.remove()">削除</button>`;
                     linksListEl.appendChild(lRow);
@@ -609,7 +687,9 @@
                 addLinkBtn.onclick = () => {
                     const lRow = document.createElement('div');
                     lRow.className = 'edit-row link-row';
-                    lRow.innerHTML = `<input type="text" class="l-label" placeholder="タイトル">
+                    lRow.innerHTML = `<button type="button" class="action-sm-btn" onclick="moveElement(this, 'up')">▲</button>
+                                      <button type="button" class="action-sm-btn" onclick="moveElement(this, 'down')">▼</button>
+                                      <input type="text" class="l-label" placeholder="タイトル">
                                       <input type="text" class="l-url" placeholder="URL">
                                       <button type="button" class="action-sm-btn danger" onclick="this.parentElement.remove()">削除</button>`;
                     linksListEl.appendChild(lRow);
@@ -629,7 +709,6 @@
         addSecBtn.onclick = () => {
             currentData.sections.push({ title: "📁 新規セクション", links: [] });
             renderSectionEditor();
-            // 自動で一番下までスクロールさせるなどの配慮
             secListContainer.scrollTop = secListContainer.scrollHeight;
         };
         secBox.appendChild(addSecBtn);
@@ -649,13 +728,19 @@
             qr: document.getElementById('edit-qr').value
         };
 
-        // 2. トップボタン群保存
+        // 2. トップボタン群保存（リンク＆改行）
         const newChips = [];
         document.querySelectorAll('#editor-chips-list .chip-row').forEach(row => {
-            const label = row.querySelector('.c-label').value;
-            const url = row.querySelector('.c-url').value;
-            if (label && url) {
-                newChips.push({ type: "link", label, url });
+            const type = row.dataset.type;
+            if (type === 'link') {
+                const label = row.querySelector('.c-label').value;
+                const url = row.querySelector('.c-url').value;
+                if (label && url) {
+                    newChips.push({ type: "link", label, url });
+                }
+            } else if (type === 'break') {
+                const height = row.querySelector('.c-height').value || '5px';
+                newChips.push({ type: "break", height });
             }
         });
         currentData.direct_buttons = newChips;
@@ -689,3 +774,5 @@
 
 </body>
 </html>
+
+```
