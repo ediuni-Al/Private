@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>QRコード作成・読み取り</title>
+<style>
+:root {
+  --bg: #f4f7f9; --surface: #ffffff; --ink: #14202b; --muted: #5d6b78;
+  --line: #cdd8e0; --accent: #0b6fa4; --accent-ink: #ffffff; --error: #b3261e;
+  --success: #237a28; --warn: #c07b00;
+  --shadow: 0 2px 8px rgba(0,0,0,0.06), 0 12px 32px -8px rgba(0,0,0,0.10);
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --bg: #10171d; --surface: #18222b; --ink: #e6edf2; --muted: #93a3b1;
+  --line: #2c3a46; --accent: #5bb6e6; --accent-ink: #08202e; --error: #ff8a80;
+  --success: #4caf50; --warn: #ffd54f;
+  --shadow: 0 2px 8px rgba(0,0,0,0.25), 0 12px 32px -8px rgba(0,0,0,0.40);
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  line-height: 1.6;
+}
+main { max-width: 980px; margin: 0 auto; padding: 24px 20px 40px; }
+
+/* Header */
+header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+h1 { font-size: 1.2rem; margin: 0; }
+#themeBtn { padding: 6px 12px; font: inherit; font-size: .8rem; cursor: pointer; background: transparent; color: var(--accent); border: 1px solid var(--accent); border-radius: 20px; }
+#themeBtn:hover { background: var(--accent); color: var(--accent-ink); }
+.subtitle { font-size: .85rem; color: var(--muted); margin: 0 0 16px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.tab { padding: 8px 16px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer; margin-bottom: -1px; }
+.tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.tab:hover:not([aria-selected="true"]) { color: var(--ink); }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* Cards */
+.card { background: var(--surface); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 16px; }
+
+/* Forms */
+label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
+textarea, select, input[type="number"], input[type="color"] {
+  width: 100%; padding: 10px; font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px;
+}
+textarea { min-height: 180px; resize: vertical; font-size: 1rem; }
+input[type="color"] { height: 38px; padding: 2px; cursor: pointer; }
+input[type="number"] { text-align: center; }
+select { cursor: pointer; }
+textarea:focus-visible, select:focus-visible, input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Buttons */
+button { padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px; border: 1px solid transparent; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-secondary { background: transparent; color: var(--accent); border-color: var(--accent); }
+.btn-secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.btn-ghost { background: transparent; color: var(--muted); border-color: transparent; }
+.btn-ghost:hover:not(:disabled) { color: var(--ink); background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.btn-danger { background: transparent; color: var(--error); border-color: var(--error); }
+.btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--error) 10%, transparent); }
+
+.row { display: flex; gap: 10px; align-items: end; margin-top: 10px; flex-wrap: wrap; }
+.row > div { flex: 1 1 120px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* QR Preview */
+.stage { display: flex; flex-direction: column; align-items: center; }
+#qrFrame {
+  width: 100%; min-height: 280px; display: flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 1px dashed var(--line); border-radius: 8px; padding: 16px; overflow: auto;
+}
+#qrFrame.has-qr { border-style: solid; background: #ffffff; padding: 0; }
+#qrEmpty { color: var(--muted); font-size: .9rem; text-align: center; margin: 0; }
+#qrCanvas { display: none; image-rendering: pixelated; max-width: none; }
+#qrInfo { margin-top: 10px; font-size: .85rem; color: var(--muted); min-height: 1.4em; text-align: center; }
+#qrInfo.error { color: var(--error); }
+#qrInfo.success { color: var(--success); }
+
+/* Templates */
+.templates { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+.templates button { padding: 5px 10px; font-size: .8rem; }
+
+/* Layout */
+.layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 20px; align-items: start; }
+@media (max-width: 760px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+/* History */
+.history-list { max-height: 260px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+.history-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: .85rem; }
+.history-item:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.history-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-item small { color: var(--muted); font-size: .75rem; white-space: nowrap; }
+
+/* Batch */
+.batch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-top: 12px; }
+.batch-card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; text-align: center; }
+.batch-card canvas { display: block; margin: 0 auto 6px; max-width: 100%; height: auto; image-rendering: pixelated; }
+.batch-card div { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Reader */
+#videoWrap { position: relative; width: 100%; aspect-ratio: 1 / 1; background: #000; border-radius: 8px; overflow: hidden; display: none; }
+#video { width: 100%; height: 100%; object-fit: cover; display: block; }
+#overlay { position: absolute; inset: 0; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+#overlay::before { content: ""; width: 60%; height: 60%; border: 2px solid rgba(255,255,255,0.8); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.35); }
+#camHint { text-align: center; font-size: .85rem; color: var(--muted); margin: 8px 0 0; }
+#camError { display: none; color: var(--error); font-size: .9rem; margin-top: 8px; text-align: center; }
+
+#dropZone { border: 2px dashed var(--line); border-radius: 8px; padding: 28px 16px; text-align: center; color: var(--muted); font-size: .9rem; cursor: pointer; transition: background .2s, border-color .2s; }
+#dropZone.dragover { background: color-mix(in srgb, var(--accent) 6%, transparent); border-color: var(--accent); }
+#fileInput { display: none; }
+#filePreview { max-width: 100%; max-height: 280px; border-radius: 8px; margin: 12px auto 0; display: none; }
+#fileError { display: none; color: var(--error); font-size: .9rem; text-align: center; margin-top: 8px; }
+
+#scanResultArea { display: none; margin-top: 12px; }
+#scanResultText { width: 100%; min-height: 100px; padding: 10px; font: inherit; font-size: .95rem; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; resize: vertical; }
+
+/* Toast */
+#toast { visibility: hidden; min-width: 220px; background: var(--success); color: #fff; text-align: center; border-radius: 6px; padding: 10px 16px; position: fixed; z-index: 1000; left: 50%; bottom: 28px; transform: translateX(-50%); font-size: .9rem; box-shadow: var(--shadow); }
+#toast.show { visibility: visible; }
+
+/* Alerts */
+.alert { border-radius: 8px; padding: 10px 12px; font-size: .85rem; margin-bottom: 12px; }
+.alert-warn { background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); }
+.alert-info { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--ink); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+
+.hint { font-size: .8rem; color: var(--muted); margin-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>QRコード作成・読み取り</h1>
+    <button id="themeBtn">🌓 テーマ</button>
+  </header>
+  <p class="subtitle">インターネット接続不要。すべてブラウザ内で完結します。</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="create">作成</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="batch">一括作成</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="reader">読み取り</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="history">履歴</button>
+  </div>
+
+  <!-- CREATE -->
+  <div id="panel-create" class="panel active">
+    <div class="layout">
+      <div>
+        <div class="card">
+          <label for="text">QRコードにする文章やURL</label>
+          <textarea id="text" placeholder="ここに文章やURLを貼り付けてください&#10;Ctrl+Enter で PNG 保存" autofocus></textarea>
+          <div class="templates">
+            <span style="font-size:.8rem;color:var(--muted);">挿入:</span>
+            <button type="button" class="btn-secondary" data-template="url">URL</button>
+            <button type="button" class="btn-secondary" data-template="wifi">WiFi</button>
+            <button type="button" class="btn-secondary" data-template="vcard">vCard</button>
+            <button type="button" class="btn-secondary" data-template="email">メール</button>
+            <button type="button" class="btn-secondary" data-template="sms">SMS</button>
+            <button type="button" class="btn-secondary" data-template="tel">電話</button>
+          </div>
+          <div class="row">
+            <div><label for="level">誤り訂正</label><select id="level"><option value="L">L（低）</option><option value="M" selected>M（標準）</option><option value="Q">Q（やや高）</option><option value="H">H（高）</option></select></div>
+            <div><label for="dotShape">ドット形状</label><select id="dotShape"><option value="square" selected>角型 ■</option><option value="circle">丸型 ●</option><option value="dot">点型 ・</option></select></div>
+            <div><label for="quiet">余白（マス）</label><input id="quiet" type="number" min="2" max="10" value="4"></div>
+            <div><label for="fgColor">前景色</label><input id="fgColor" type="color" value="#000000"></div>
+            <div><label for="bgColor">背景色</label><input id="bgColor" type="color" value="#ffffff"></div>
+            <button id="clear" type="button" class="btn-ghost">クリア</button>
+          </div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="card" style="width:100%;">
+          <div id="qrFrame">
+            <p id="qrEmpty">文章を入力すると、ここにQRコードが表示されます。</p>
+            <canvas id="qrCanvas" role="img" aria-label="作成したQRコード"></canvas>
+          </div>
+          <div id="qrInfo"></div>
+          <div class="actions" style="justify-content:center;">
+            <button id="downloadPng" class="btn-primary" disabled>PNG保存</button>
+            <button id="downloadSvg" class="btn-secondary" disabled>SVG保存</button>
+            <button id="copyImage" class="btn-secondary" disabled>画像コピー</button>
+            <button id="testRead" class="btn-secondary" disabled style="display:none;">読み取りテスト</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BATCH -->
+  <div id="panel-batch" class="panel">
+    <div class="card">
+      <label for="batchText">1行に1つずつ入力してください</label>
+      <textarea id="batchText" style="min-height:140px;" placeholder="例:&#10;https://example.com/1&#10;https://example.com/2&#10;https://example.com/3"></textarea>
+      <div class="row">
+        <div><label for="batchLevel">誤り訂正</label><select id="batchLevel"><option value="L">L</option><option value="M" selected>M</option><option value="Q">Q</option><option value="H">H</option></select></div>
+        <div><label for="batchShape">形状</label><select id="batchShape"><option value="square" selected>角型</option><option value="circle">丸型</option><option value="dot">点型</option></select></div>
+        <div><label for="batchQuiet">余白</label><input id="batchQuiet" type="number" min="2" max="10" value="4"></div>
+        <button id="batchGenerate" type="button" class="btn-primary">一括生成</button>
+      </div>
+      <div id="batchResult" class="batch-grid"></div>
+    </div>
+  </div>
+
+  <!-- READER -->
+  <div id="panel-reader" class="panel">
+    <div class="layout">
+      <div>
+        <div class="card">
+          <div id="readerAlert" class="alert alert-info">画像ファイルからは必ず読み取ます。カメラ読み取りにはHTTPS環境とChrome/Edgeが必要です。</div>
+          <div id="httpWarn" class="alert alert-warn" style="display:none;">HTTP環境ではブラウザの制限によりカメラを使用できません。画像ファイルから読み取ってください。</div>
+          <div id="apiWarn" class="alert alert-warn" style="display:none;">お使いのブラウザはBarcodeDetector APIに対応していません。Chrome/Edgeをご利用ください。</div>
+
+          <div class="tabs" style="margin-bottom:12px;">
+            <button class="tab" role="tab" aria-selected="true" data-subtab="cam">カメラ</button>
+            <button class="tab" role="tab" aria-selected="false" data-subtab="file">画像ファイル</button>
+          </div>
+
+          <div id="subpanel-cam" class="subpanel active">
+            <div id="videoWrap"><video id="video" autoplay playsinline muted></video><div id="overlay"></div></div>
+            <p id="camHint">「開始」でカメラを起動し、QRコードを枠内に合わせてください。</p>
+            <p id="camError"></p>
+            <div class="actions" style="justify-content:center;">
+              <button id="startCam" class="btn-primary">カメラ開始</button>
+              <button id="stopCam" class="btn-secondary" disabled>停止</button>
+              <button id="rescanCam" class="btn-secondary" style="display:none;">再読み取り</button>
+            </div>
+          </div>
+
+          <div id="subpanel-file" class="subpanel" style="display:none;">
+            <div id="dropZone"><div>📎 クリックまたはドラッグ＆ドロップで画像を選択</div><div style="font-size:.75rem;margin-top:6px;">PNG / JPG / GIF / WebP</div></div>
+            <input id="fileInput" type="file" accept="image/*">
+            <img id="filePreview" alt="プレビュー">
+            <p id="fileError"></p>
+            <div class="actions" style="justify-content:center;">
+              <button id="readFile" class="btn-primary" disabled>読み取る</button>
+              <button id="clearFile" class="btn-secondary" style="display:none;">クリア</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <label for="scanResultText">読み取り結果</label>
+          <textarea id="scanResultText" readonly placeholder="読み取り結果がここに表示されます"></textarea>
+          <div class="actions" style="justify-content:center;">
+            <button id="copyScan" class="btn-primary">📋 コピー</button>
+            <button id="sendToCreate" class="btn-secondary" style="display:none;">作成画面へ送る</button>
+            <button id="openScan" class="btn-secondary" style="display:none;">🔗 開く</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="panel-history" class="panel">
+    <div class="card">
+      <div class="actions" style="justify-content:flex-end;"><button id="clearHistory" class="btn-danger">すべて削除</button></div>
+      <div id="historyList" class="history-list"><p style="color:var(--muted);font-size:.85rem;text-align:center;margin:0;">履歴はまだありません</p></div>
+    </div>
+  </div>
+
+  <p class="hint">作成・読み取りともに外部サーバーと通信しません。作成したQRコードは「読み取りテスト」ボタンで即座に検証できます。</p>
+</main>
+
+<div id="toast"></div>
+
+<script>
+/* ===================== QR Generator Factory ===================== */
+function qrGenFactory() {
+  var ECC_PER_BLOCK = [
+    [-1,7,10,15,20,26,18,20,24,30,18,20,24,26,30,22,24,28,30,28,28,28,28,30,30,26,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30],
+    [-1,10,16,26,18,24,16,18,22,22,26,30,22,22,24,24,28,28,26,26,26,26,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28],
+    [-1,13,22,18,26,18,24,18,22,20,24,28,26,24,20,30,24,28,28,26,30,28,30,30,30,30,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30],
+    [-1,17,28,22,16,22,28,26,26,24,28,24,28,22,24,24,30,28,28,26,28,30,24,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30]
+  ];
+  var NUM_BLOCKS = [
+    [-1,1,1,1,1,1,2,2,2,2,4,4,4,4,4,6,6,6,6,7,8,8,9,9,10,12,12,12,13,14,15,16,17,18,19,19,20,21,22,24,25],
+    [-1,1,1,1,2,2,4,4,4,5,5,5,8,9,9,10,10,11,13,14,16,17,17,18,20,21,23,25,26,28,29,31,33,35,37,38,40,43,45,47,49],
+    [-1,1,1,2,2,4,4,6,6,8,8,8,10,12,16,12,17,16,18,21,20,23,23,25,27,29,34,34,35,38,40,43,45,48,51,53,56,59,62,65,68],
+    [-1,1,1,2,4,4,4,5,6,8,8,11,11,16,16,18,16,19,21,25,25,25,34,30,32,35,37,40,42,45,48,51,54,57,60,63,66,70,74,77,81]
+  ];
+  var FORMAT_BITS = [1,0,3,2];
+  var LEVELS = {L:0,M:1,Q:2,H:3};
+  function rawModules(ver){var r=(16*ver+128)*ver+64;if(ver>=2){var na=Math.floor(ver/7)+2;r-=(25*na-10)*na-55;if(ver>=7)r-=36;}return r;}
+  function dataCodewords(ver,ecl){return Math.floor(rawModules(ver)/8)-ECC_PER_BLOCK[ecl][ver]*NUM_BLOCKS[ecl][ver];}
+  function rsMul(x,y){var z=0;for(var i=7;i>=0;i--){z=(z<<1)^((z>>>7)*0x11D);z^=((y>>>i)&1)*x;}return z;}
+  function rsDivisor(degree){var r=[],i,j;for(i=0;i<degree-1;i++)r.push(0);r.push(1);var root=1;for(i=0;i<degree;i++){for(j=0;j<r.length;j++){r[j]=rsMul(r[j],root);if(j+1<r.length)r[j]^=r[j+1];}root=rsMul(root,0x02);}return r;}
+  function rsRemainder(data,divisor){var r=divisor.map(function(){return 0;});data.forEach(function(b){var f=b^r.shift();r.push(0);divisor.forEach(function(c,i){r[i]^=rsMul(c,f);});});return r;}
+  function addEccAndInterleave(data,ver,ecl){var numBlocks=NUM_BLOCKS[ecl][ver],eccLen=ECC_PER_BLOCK[ecl][ver],raw=Math.floor(rawModules(ver)/8),numShort=numBlocks-raw%numBlocks,shortLen=Math.floor(raw/numBlocks),blocks=[],div=rsDivisor(eccLen),i,k=0;for(i=0;i<numBlocks;i++){var dat=data.slice(k,k+shortLen-eccLen+(i<numShort?0:1));k+=dat.length;var ecc=rsRemainder(dat,div);if(i<numShort)dat.push(0);blocks.push(dat.concat(ecc));}var result=[];for(i=0;i<blocks[0].length;i++){for(var j=0;j<blocks.length;j++){if(i!==shortLen-eccLen||j>=numShort)result.push(blocks[j][i]);}}return result;}
+  function toUtf8(str){if(typeof TextEncoder!=='undefined')return Array.prototype.slice.call(new TextEncoder().encode(str));var s=unescape(encodeURIComponent(str)),out=[];for(var i=0;i<s.length;i++)out.push(s.charCodeAt(i));return out;}
+  function makeDataCodewords(bytes,ver,ecl){var bits=[];function put(val,len){for(var i=len-1;i>=0;i--)bits.push((val>>>i)&1);}put(4,4);put(bytes.length,ver<=9?8:16);bytes.forEach(function(b){put(b,8);});var cap=dataCodewords(ver,ecl)*8;put(0,Math.min(4,cap-bits.length));while(bits.length%8!==0)bits.push(0);var cw=[];for(var i=0;i<bits.length;i+=8){var v=0;for(var j=0;j<8;j++)v=(v<<1)|bits[i+j];cw.push(v);}for(var pad=0xEC;cw.length<cap/8;pad^=0xEC^0x11)cw.push(pad);return cw;}
+  function buildMatrix(codewords,ver,ecl){var size=ver*4+17,x,y,i;var mod=[],func=[];for(y=0;y<size;y++){mod.push(new Array(size).fill(false));func.push(new Array(size).fill(false));}function setF(x,y,dark){mod[y][x]=dark;func[y][x]=true;}function bit(v,i){return((v>>>i)&1)!==0;}function drawFormat(mask){var data=(FORMAT_BITS[ecl]<<3)|mask,rem=data,k;for(k=0;k<10;k++)rem=(rem<<1)^((rem>>>9)*0x537);var bits=((data<<10)|rem)^0x5412;for(k=0;k<=5;k++)setF(8,k,bit(bits,k));setF(8,7,bit(bits,6));setF(8,8,bit(bits,7));setF(7,8,bit(bits,8));for(k=9;k<15;k++)setF(14-k,8,bit(bits,k));for(k=0;k<8;k++)setF(size-1-k,8,bit(bits,k));for(k=8;k<15;k++)setF(8,size-15+k,bit(bits,k));setF(8,size-8,true);}function drawVersion(){if(ver<7)return;var rem=ver,k;for(k=0;k<12;k++)rem=(rem<<1)^((rem>>>11)*0x1F25);var bits=(ver<<12)|rem;for(k=0;k<18;k++){var a=size-11+k%3,b=Math.floor(k/3);setF(a,b,bit(bits,k));setF(b,a,bit(bits,k));}}function drawFinder(cx,cy){for(var dy=-4;dy<=4;dy++)for(var dx=-4;dx<=4;dx++){var d=Math.max(Math.abs(dx),Math.abs(dy)),xx=cx+dx,yy=cy+dy;if(xx>=0&&xx<size&&yy>=0&&yy<size)setF(xx,yy,d!==2&&d!==4);}}function drawAlign(cx,cy){for(var dy=-2;dy<=2;dy++)for(var dx=-2;dx<=2;dx++)setF(cx+dx,cy+dy,Math.max(Math.abs(dx),Math.abs(dy))!==1);}function alignPositions(){if(ver===1)return[];var n=Math.floor(ver/7)+2;var step=(ver===32)?26:Math.ceil((ver*4+4)/(n*2-2))*2;var res=[6];for(var pos=size-7;res.length<n;pos-=step)res.splice(1,0,pos);return res;}for(i=0;i<size;i++){setF(6,i,i%2===0);setF(i,6,i%2===0);}drawFinder(3,3);drawFinder(size-4,3);drawFinder(3,size-4);var ap=alignPositions(),n=ap.length;for(i=0;i<n;i++)for(var j=0;j<n;j++){if(!((i===0&&j===0)||(i===0&&j===n-1)||(i===n-1&&j===0)))drawAlign(ap[i],ap[j]);}drawFormat(0);drawVersion();var idx=0;for(var right=size-1;right>=1;right-=2){if(right===6)right=5;for(var vert=0;vert<size;vert++){for(var jj=0;jj<2;jj++){x=right-jj;var upward=((right+1)&2)===0;y=upward?size-1-vert:vert;if(!func[y][x]&&idx<codewords.length*8){mod[y][x]=bit(codewords[idx>>>3],7-(idx&7));idx++;}}}}function applyMask(m){for(var yy=0;yy<size;yy++)for(var xx=0;xx<size;xx++){var inv;switch(m){case 0:inv=(xx+yy)%2===0;break;case 1:inv=yy%2===0;break;case 2:inv=xx%3===0;break;case 3:inv=(xx+yy)%3===0;break;case 4:inv=(Math.floor(xx/3)+Math.floor(yy/2))%2===0;break;case 5:inv=xx*yy%2+xx*yy%3===0;break;case 6:inv=(xx*yy%2+xx*yy%3)%2===0;break;default:inv=((xx+yy)%2+xx*yy%3)%2===0;}if(!func[yy][xx]&&inv)mod[yy][xx]=!mod[yy][xx];}}function penalty(){var p=0,a,b,run,dark=0;for(a=0;a<size;a++){for(var dir=0;dir<2;dir++){run=1;for(b=1;b<size;b++){var cur=dir?mod[b][a]:mod[a][b];var prev=dir?mod[b-1][a]:mod[a][b-1];if(cur===prev){run++;if(run===5)p+=3;else if(run>5)p++;}else run=1;}}}for(a=0;a<size-1;a++)for(b=0;b<size-1;b++){var c=mod[a][b];if(c===mod[a][b+1]&&c===mod[a+1][b]&&c===mod[a+1][b+1])p+=3;}var pat1=[true,false,true,true,true,false,true,false,false,false,false];var pat2=[false,false,false,false,true,false,true,true,true,false,true];for(a=0;a<size;a++)for(b=0;b<=size-11;b++){var m1=true,m2=true,m3=true,m4=true;for(var t=0;t<11;t++){if(mod[a][b+t]!==pat1[t])m1=false;if(mod[a][b+t]!==pat2[t])m2=false;if(mod[b+t][a]!==pat1[t])m3=false;if(mod[b+t][a]!==pat2[t])m4=false;}p+=40*((m1?1:0)+(m2?1:0)+(m3?1:0)+(m4?1:0));}for(a=0;a<size;a++)for(b=0;b<size;b++)if(mod[a][b])dark++;var total=size*size;p+=Math.floor(Math.abs(dark*20-total*10)/total)*10;return p;}var best=0,bestP=Infinity;for(var m=0;m<8;m++){applyMask(m);drawFormat(m);var pen=penalty();if(pen<bestP){bestP=pen;best=m;}applyMask(m);}applyMask(best);drawFormat(best);return{size:size,modules:mod,mask:best};}
+  function encode(text,level){var bytes=toUtf8(text);var order=['H','Q','M','L'];var start=order.indexOf(level||'M');for(var li=start;li<order.length;li++){var ecl=LEVELS[order[li]];for(var ver=1;ver<=40;ver++){var needBits=4+(ver<=9?8:16)+bytes.length*8;if(needBits<=dataCodewords(ver,ecl)*8){var cw=addEccAndInterleave(makeDataCodewords(bytes,ver,ecl),ver,ecl);var r=buildMatrix(cw,ver,ecl);r.version=ver;r.level=order[li];r.byteLength=bytes.length;return r;}}}return null;}
+  return{encode:encode,capacity:function(ver,level){return dataCodewords(ver,LEVELS[level]);}};
+}
+
+/* ===================== Main App ===================== */
+(function() {
+  var QRGen = qrGenFactory();
+
+  /* --- Elements --- */
+  var text = document.getElementById('text');
+  var level = document.getElementById('level');
+  var dotShape = document.getElementById('dotShape');
+  var quietInput = document.getElementById('quiet');
+  var fgInput = document.getElementById('fgColor');
+  var bgInput = document.getElementById('bgColor');
+  var qrFrame = document.getElementById('qrFrame');
+  var qrEmpty = document.getElementById('qrEmpty');
+  var qrCanvas = document.getElementById('qrCanvas');
+  var qrInfo = document.getElementById('qrInfo');
+  var downloadPng = document.getElementById('downloadPng');
+  var downloadSvg = document.getElementById('downloadSvg');
+  var copyImage = document.getElementById('copyImage');
+  var testReadBtn = document.getElementById('testRead');
+  var currentQR = null;
+
+  var video = document.getElementById('video');
+  var videoWrap = document.getElementById('videoWrap');
+  var camHint = document.getElementById('camHint');
+  var camError = document.getElementById('camError');
+  var startCam = document.getElementById('startCam');
+  var stopCam = document.getElementById('stopCam');
+  var rescanCam = document.getElementById('rescanCam');
+  var scanResultText = document.getElementById('scanResultText');
+  var copyScan = document.getElementById('copyScan');
+  var sendToCreate = document.getElementById('sendToCreate');
+  var openScan = document.getElementById('openScan');
+  var fileInput = document.getElementById('fileInput');
+  var dropZone = document.getElementById('dropZone');
+  var filePreview = document.getElementById('filePreview');
+  var readFile = document.getElementById('readFile');
+  var clearFile = document.getElementById('clearFile');
+  var fileError = document.getElementById('fileError');
+  var toast = document.getElementById('toast');
+
+  var stream = null, rafId = null, detector = null, stopped = false;
+  var hasDetector = typeof BarcodeDetector !== 'undefined';
+  if (hasDetector) { try { detector = new BarcodeDetector({formats:['qr_code']}); } catch(e) { hasDetector = false; } }
+
+  /* --- Theme --- */
+  var savedTheme = localStorage.getItem('qrAppTheme') || 'auto';
+  function applyTheme(t) {
+    if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    else if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
+  }
+  applyTheme(savedTheme);
+  var themeCycle = {auto:'light',light:'dark',dark:'auto'};
+  document.getElementById('themeBtn').addEventListener('click', function() {
+    savedTheme = themeCycle[savedTheme] || 'auto';
+    localStorage.setItem('qrAppTheme', savedTheme);
+    applyTheme(savedTheme);
+  });
+
+  /* --- Tabs --- */
+  function switchTab(name) {
+    document.querySelectorAll('.tab[role="tab"]').forEach(function(t) {
+      t.setAttribute('aria-selected', t.dataset.tab === name ? 'true' : 'false');
+    });
+    document.querySelectorAll('.panel').forEach(function(p) {
+      p.classList.toggle('active', p.id === 'panel-' + name);
+    });
+  }
+  document.querySelectorAll('.tab[role="tab"]').forEach(function(tab) {
+    tab.addEventListener('click', function() { switchTab(tab.dataset.tab); });
+  });
+
+  /* Subtabs inside reader */
+  function switchSubtab(name) {
+    document.querySelectorAll('[data-subtab]').forEach(function(t) {
+      t.setAttribute('aria-selected', t.dataset.subtab === name ? 'true' : 'false');
+    });
+    document.getElementById('subpanel-cam').style.display = name === 'cam' ? 'block' : 'none';
+    document.getElementById('subpanel-file').style.display = name === 'file' ? 'block' : 'none';
+  }
+  document.querySelectorAll('[data-subtab]').forEach(function(tab) {
+    tab.addEventListener('click', function() { switchSubtab(tab.dataset.subtab); });
+  });
+
+  /* --- Toast --- */
+  function showToast(msg) {
+    toast.textContent = msg; toast.className = 'show';
+    setTimeout(function() { toast.className = ''; }, 2000);
+  }
+
+  /* --- QR Render --- */
+  function resetQR(msg, isError) {
+    qrCanvas.style.display = 'none';
+    downloadPng.disabled = true; downloadSvg.disabled = true; copyImage.disabled = true; testReadBtn.disabled = true; testReadBtn.style.display = 'none';
+    qrEmpty.style.display = '';
+    qrFrame.classList.remove('has-qr');
+    qrInfo.className = isError ? 'error' : '';
+    qrInfo.textContent = msg || '';
+    currentQR = null;
+  }
+
+  function drawQR(qr, destCanvas, quietOverride, scaleOverride) {
+    var quiet = quietOverride != null ? quietOverride : (parseInt(quietInput.value,10) || 4);
+    var total = qr.size + quiet * 2;
+    var avail = scaleOverride ? 400 : Math.min(qrFrame.clientWidth || 420, 460);
+    var scale = scaleOverride || Math.max(2, Math.floor(avail / total));
+    var px = total * scale;
+    destCanvas.width = px; destCanvas.height = px;
+    if (!scaleOverride) { destCanvas.style.width = px + 'px'; destCanvas.style.height = px + 'px'; }
+    var ctx = destCanvas.getContext('2d');
+    var bg = bgInput.value || '#ffffff';
+    var fg = fgInput.value || '#000000';
+    ctx.fillStyle = bg; ctx.fillRect(0,0,px,px);
+    ctx.fillStyle = fg;
+    var shape = dotShape.value;
+    for (var y = 0; y < qr.size; y++) {
+      for (var x = 0; x < qr.size; x++) {
+        if (!qr.modules[y][x]) continue;
+        var dx = (x + quiet) * scale, dy = (y + quiet) * scale;
+        var inFinder = (x < 7 && y < 7) || (x >= qr.size - 7 && y < 7) || (x < 7 && y >= qr.size - 7);
+        if ((shape === 'circle' || shape === 'dot') && !inFinder) {
+          ctx.beginPath();
+          var radius = shape === 'circle' ? scale * 0.46 : scale * 0.32;
+          ctx.arc(dx + scale / 2, dy + scale / 2, radius, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillRect(dx, dy, scale, scale);
+        }
+      }
+    }
+  }
+
+  function renderQR() {
+    var val = text.value;
+    if (val === '') { resetQR(''); return; }
+    var qr = QRGen.encode(val, level.value);
+    if (!qr) { resetQR('文章が長すぎてQRコードにできません。短くしてください。', true); return; }
+    currentQR = qr;
+    drawQR(qr, qrCanvas);
+    qrEmpty.style.display = 'none';
+    qrCanvas.style.display = 'block';
+    downloadPng.disabled = false; downloadSvg.disabled = false; copyImage.disabled = false;
+    testReadBtn.disabled = false; testReadBtn.style.display = 'inline-block';
+    qrFrame.classList.add('has-qr');
+    qrInfo.className = '';
+    var note = qr.level !== level.value ? '（文章が長いため' + qr.level + 'に下げました）' : '';
+    qrInfo.textContent = '型番 ' + qr.version + ' ／ 誤り訂正 ' + qr.level + ' ／ ' + qr.byteLength + ' バイト' + note;
+    saveHistory(val, level.value);
+  }
+
+  function generateSVG(qr) {
+    var quiet = parseInt(quietInput.value, 10) || 4;
+    var scale = 4;
+    var total = qr.size + quiet * 2;
+    var w = total * scale, h = total * scale;
+    var bg = bgInput.value || '#ffffff';
+    var fg = fgInput.value || '#000000';
+    var shape = dotShape.value;
+    var svg = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">'];
+    svg.push('<rect width="100%" height="100%" fill="' + escXml(bg) + '"/>');
+    for (var y = 0; y < qr.size; y++) {
+      for (var x = 0; x < qr.size; x++) {
+        if (!qr.modules[y][x]) continue;
+        var dx = (x + quiet) * scale, dy = (y + quiet) * scale;
+        var inFinder = (x < 7 && y < 7) || (x >= qr.size - 7 && y < 7) || (x < 7 && y >= qr.size - 7);
+        if ((shape === 'circle' || shape === 'dot') && !inFinder) {
+          var radius = shape === 'circle' ? scale * 0.46 : scale * 0.32;
+          svg.push('<circle cx="' + (dx + scale / 2) + '" cy="' + (dy + scale / 2) + '" r="' + radius + '" fill="' + escXml(fg) + '"/>');
+        } else {
+          svg.push('<rect x="' + dx + '" y="' + dy + '" width="' + scale + '" height="' + scale + '" fill="' + escXml(fg) + '"/>');
+        }
+      }
+    }
+    svg.push('</svg>');
+    return svg.join('\n');
+  }
+
+  function escXml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  /* --- Events: Create --- */
+  text.addEventListener('input', renderQR);
+  level.addEventListener('change', renderQR);
+  dotShape.addEventListener('change', renderQR);
+  quietInput.addEventListener('input', renderQR);
+  fgInput.addEventListener('input', renderQR);
+  bgInput.addEventListener('input', renderQR);
+  window.addEventListener('resize', function() { if (text.value !== '') renderQR(); });
+  document.getElementById('clear').addEventListener('click', function() { text.value = ''; renderQR(); text.focus(); });
+
+  text.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'Enter' && !downloadPng.disabled) { e.preventDefault(); downloadPng.click(); }
+  });
+
+  /* Templates */
+  var templates = {
+    url: 'https://',
+    wifi: 'WIFI:T:WPA;S:ネットワーク名;P:パスワード;;',
+    vcard: 'BEGIN:VCARD\nVERSION:3.0\nFN:名前\nTEL:0000000000\nEMAIL:example@example.com\nEND:VCARD',
+    email: 'mailto:example@example.com?subject=件名&body=本文',
+    sms: 'smsto:0000000000:メッセージ',
+    tel: 'tel:0000000000'
+  };
+  document.querySelectorAll('[data-template]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      text.value = templates[btn.dataset.template];
+      renderQR();
+      text.focus();
+    });
+  });
+
+  /* --- Download & Copy --- */
+  downloadPng.addEventListener('click', function() {
+    if (downloadPng.disabled) return;
+    var link = document.createElement('a');
+    link.download = 'qrcode.png'; link.href = qrCanvas.toDataURL('image/png'); link.click();
+  });
+
+  downloadSvg.addEventListener('click', function() {
+    if (!currentQR) return;
+    var blob = new Blob([generateSVG(currentQR)], {type:'image/svg+xml'});
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.download = 'qrcode.svg'; link.href = url; link.click();
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+  });
+
+  copyImage.addEventListener('click', async function() {
+    if (!qrCanvas) return;
+    try {
+      var blob = await new Promise(function(res, rej) { qrCanvas.toBlob(function(b) { b ? res(b) : rej(); }); });
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      qrInfo.className = 'success'; qrInfo.textContent = 'クリップボードにコピーしした';
+      setTimeout(function() { qrInfo.className = ''; renderQR(); }, 1500);
+    } catch(e) { qrInfo.className = 'error'; qrInfo.textContent = 'コピーに失敗しました'; }
+  });
+
+  /* Test read: send generated QR to reader */
+  testReadBtn.addEventListener('click', async function() {
+    if (!currentQR) return;
+    // Convert canvas to blob and read
+    var blob = await new Promise(function(res) { qrCanvas.toBlob(function(b) { res(b); }, 'image/png'); });
+    if (!hasDetector) { showToast('BarcodeDetector API未対応'); return; }
+    try {
+      var bitmap = await createImageBitmap(blob);
+      var codes = await detector.detect(bitmap);
+      bitmap.close();
+      if (codes && codes.length > 0) {
+        scanResultText.value = codes[0].rawValue;
+        showScanActions(codes[0].rawValue);
+        switchTab('reader');
+        showToast('読み取りテスト成功');
+      } else {
+        showToast('QRコードを検出できませんでした');
+      }
+    } catch(e) { showToast('読み取りエラー'); }
+  });
+
+  /* --- Batch --- */
+  var batchText = document.getElementById('batchText');
+  var batchResult = document.getElementById('batchResult');
+  document.getElementById('batchGenerate').addEventListener('click', function() {
+    var lines = batchText.value.split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+    batchResult.innerHTML = '';
+    if (lines.length === 0) return;
+    var bLevel = document.getElementById('batchLevel').value;
+    var bShape = document.getElementById('batchShape').value;
+    var bQuiet = parseInt(document.getElementById('batchQuiet').value, 10) || 4;
+    lines.forEach(function(line, idx) {
+      var qr = QRGen.encode(line, bLevel);
+      if (!qr) return;
+      var card = document.createElement('div'); card.className = 'batch-card';
+      var cvs = document.createElement('canvas'); cvs.style.imageRendering = 'pixelated';
+      // temporarily set inputs
+      var origLevel = level.value, origShape = dotShape.value, origQuiet = quietInput.value;
+      level.value = bLevel; dotShape.value = bShape; quietInput.value = bQuiet;
+      drawQR(qr, cvs, bQuiet, 6);
+      level.value = origLevel; dotShape.value = origShape; quietInput.value = origQuiet;
+      var cap = document.createElement('div'); cap.textContent = line; cap.title = line;
+      var btn = document.createElement('button'); btn.className = 'btn-secondary'; btn.textContent = 'PNG保存';
+      btn.addEventListener('click', function() {
+        var a = document.createElement('a'); a.download = 'qrcode_' + (idx + 1) + '.png'; a.href = cvs.toDataURL('image/png'); a.click();
+      });
+      card.appendChild(cvs); card.appendChild(cap); card.appendChild(btn);
+      batchResult.appendChild(card);
+    });
+  });
+
+  /* --- History --- */
+  function saveHistory(val, lvl) {
+    if (!val) return;
+    try {
+      var history = JSON.parse(localStorage.getItem('qrAppHistory') || '[]');
+      history = history.filter(function(h) { return h.text !== val; });
+      history.unshift({ text: val, level: lvl || 'M', time: Date.now() });
+      if (history.length > 30) history.pop();
+      localStorage.setItem('qrAppHistory', JSON.stringify(history));
+      renderHistory();
+    } catch(e) {}
+  }
+  function renderHistory() {
+    var list = document.getElementById('historyList');
+    try {
+      var history = JSON.parse(localStorage.getItem('qrAppHistory') || '[]');
+      if (history.length === 0) { list.innerHTML = '<p style="color:var(--muted);font-size:.85rem;text-align:center;margin:0;">履歴はまだありません</p>'; return; }
+      list.innerHTML = '';
+      history.forEach(function(h) {
+        var div = document.createElement('div'); div.className = 'history-item';
+        var dateStr = new Date(h.time).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        var txt = h.text.length > 35 ? h.text.slice(0, 35) + '…' : h.text;
+        div.innerHTML = '<span title="' + escXml(h.text) + '">' + escXml(txt) + '</span><small>' + escXml(dateStr) + ' · ' + escXml(h.level) + '</small>';
+        div.addEventListener('click', function() {
+          text.value = h.text; level.value = h.level || 'M'; switchTab('create'); renderQR(); text.focus();
+        });
+        list.appendChild(div);
+      });
+    } catch(e) {}
+  }
+  document.getElementById('clearHistory').addEventListener('click', function() {
+    if (confirm('履歴をすべて削除しますか？')) { localStorage.removeItem('qrAppHistory'); renderHistory(); }
+  });
+
+  /* --- Reader: Camera --- */
+  var isSecure = window.isSecureContext;
+  if (!isSecure) {
+    document.getElementById('httpWarn').style.display = 'block';
+    startCam.disabled = true;
+    camHint.textContent = 'HTTP環境ではカメラを使用できません。画像ファイルから読み取ってください。';
+  }
+  if (!hasDetector) document.getElementById('apiWarn').style.display = 'block';
+
+  async function detectFromVideo() {
+    if (stopped || !detector) return;
+    try {
+      var codes = await detector.detect(video);
+      if (codes && codes.length > 0) {
+        var text = codes[0].rawValue;
+        await stopCamera();
+        videoWrap.style.display = 'none'; camHint.style.display = 'none'; camError.style.display = 'none';
+        startCam.style.display = 'none'; stopCam.style.display = 'none'; rescanCam.style.display = 'inline-block';
+        scanResultText.value = text; showScanActions(text); showToast('読み取り成功');
+        return;
+      }
+    } catch(e) {}
+    rafId = requestAnimationFrame(detectFromVideo);
+  }
+
+  async function startCamera() {
+    if (!isSecure) return;
+    stopped = false; camError.style.display = 'none'; camHint.style.display = 'block';
+    startCam.style.display = 'none'; stopCam.style.display = 'inline-block'; stopCam.disabled = false;
+    videoWrap.style.display = 'block'; rescanCam.style.display = 'none';
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      video.srcObject = stream; await video.play(); detectFromVideo();
+    } catch(err) {
+      camError.textContent = 'カメラを起動できませんでした。権限を許可しているか確認してください。';
+      camError.style.display = 'block'; stopCamera();
+    }
+  }
+
+  async function stopCamera() {
+    stopped = true;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
+    video.srcObject = null;
+    startCam.style.display = 'inline-block'; stopCam.style.display = 'none'; startCam.disabled = false;
+    return Promise.resolve();
+  }
+
+  startCam.addEventListener('click', startCamera);
+  stopCam.addEventListener('click', stopCamera);
+  rescanCam.addEventListener('click', function() {
+    scanResultText.value = ''; sendToCreate.style.display = 'none'; openScan.style.display = 'none';
+    rescanCam.style.display = 'none'; startCam.style.display = 'inline-block'; startCam.disabled = false;
+    camHint.style.display = 'block'; videoWrap.style.display = 'block'; startCamera();
+  });
+
+  /* --- Reader: File --- */
+  var currentFile = null;
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      fileError.textContent = '画像ファイルを選択してください。'; fileError.style.display = 'block'; return;
+    }
+    fileError.style.display = 'none'; currentFile = file;
+    var url = URL.createObjectURL(file); filePreview.src = url; filePreview.style.display = 'block';
+    readFile.disabled = false; clearFile.style.display = 'inline-block'; dropZone.style.display = 'none';
+  }
+  dropZone.addEventListener('click', function() { fileInput.click(); });
+  fileInput.addEventListener('change', function() { handleFile(fileInput.files[0]); });
+  dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('dragover'); });
+  dropZone.addEventListener('drop', function(e) { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+  clearFile.addEventListener('click', function() {
+    currentFile = null; filePreview.src = ''; filePreview.style.display = 'none';
+    readFile.disabled = true; clearFile.style.display = 'none'; dropZone.style.display = 'block';
+    fileInput.value = ''; fileError.style.display = 'none';
+  });
+  readFile.addEventListener('click', async function() {
+    if (!currentFile) return; fileError.style.display = 'none';
+    if (!hasDetector) { fileError.textContent = 'BarcodeDetector API未対応です。Chrome/Edgeをご利用ください。'; fileError.style.display = 'block'; return; }
+    try {
+      var bitmap = await createImageBitmap(currentFile);
+      var codes = await detector.detect(bitmap); bitmap.close();
+      if (codes && codes.length > 0) { scanResultText.value = codes[0].rawValue; showScanActions(codes[0].rawValue); showToast('読み取り成功'); }
+      else { fileError.textContent = 'QRコードが見つかりませんでした。'; fileError.style.display = 'block'; }
+    } catch(e) { fileError.textContent = '読み取りに失敗しました。'; fileError.style.display = 'block'; }
+  });
+
+  /* --- Scan Actions --- */
+  function showScanActions(text) {
+    sendToCreate.style.display = 'inline-block';
+    var isUrl = /^https?:\/\//i.test(text) || /^mailto:/i.test(text) || /^tel:/i.test(text) || /^smsto:/i.test(text) || /^WIFI:/i.test(text);
+    openScan.style.display = isUrl ? 'inline-block' : 'none';
+  }
+  copyScan.addEventListener('click', function() {
+    var t = scanResultText.value; if (!t) return;
+    navigator.clipboard.writeText(t).then(function() { showToast('コピーしました'); });
+  });
+  sendToCreate.addEventListener('click', function() {
+    var t = scanResultText.value; if (!t) return;
+    text.value = t; switchTab('create'); renderQR(); text.focus();
+  });
+  openScan.addEventListener('click', function() {
+    var t = scanResultText.value; if (!t) return;
+    if (/^https?:/i.test(t)) window.open(t, '_blank');
+    else if (/^(mailto|tel|smsto):/i.test(t)) window.location.href = t;
+  });
+
+  /* --- Init --- */
+  renderHistory();
+})();
+</script>
+</body>
+</html>
