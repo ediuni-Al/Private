@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internet Start Page</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎶</text></svg>">
+    <style>
+        :root {
+            --md-bg: #f5fafd; 
+            --md-primary: #0077b6;
+            --md-on-surface: #1a1c1e;
+            --md-surface-variant: #e1e8ed;
+            --md-container: #ffffff;
+            --md-link-hover: #e0f2f1;
+            --font-main: 13px;
+        }
+
+        [data-theme="dark"] {
+            --md-bg: #1a1c1e;
+            --md-primary: #76d1ff;
+            --md-on-surface: #e2e2e6;
+            --md-surface-variant: #41484d;
+            --md-container: #2d3135;
+            --md-link-hover: #374955;
+        }
+
+        body {
+            background-color: var(--md-bg);
+            color: var(--md-on-surface);
+            font-family: "Google Sans", "BIZ UDPGothic", sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: var(--font-main);
+            transition: background-color 0.3s ease;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1600px;
+            padding: 20px 0;
+        }
+
+        header {
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--md-primary);
+            padding-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 1.2rem;
+            color: var(--md-primary);
+            margin: 0;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chip {
+            background-color: var(--md-surface-variant);
+            color: var(--md-on-surface);
+            text-decoration: none;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .chip:hover {
+            background-color: var(--md-primary);
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .header-icon-btn {
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid var(--md-primary);
+            background: transparent;
+            color: var(--md-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            text-decoration: none;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+        .header-icon-btn:hover {
+            background: var(--md-primary);
+            color: var(--md-container);
+        }
+
+        /* プルダウンメニューのスタイル */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: var(--md-container);
+            min-width: 200px;
+            box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+            z-index: 100;
+            border-radius: 8px;
+            padding: 8px 0;
+            margin-top: 5px;
+            border: 1px solid var(--md-surface-variant);
+        }
+
+        .dropdown::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            display: none;
+        }
+
+        .dropdown:hover .dropdown-content,
+        .dropdown:hover::after {
+            display: block;
+        }
+
+        .dropdown-content a {
+            color: var(--md-on-surface);
+            padding: 8px 16px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.85rem;
+            transition: background 0.15s;
+        }
+
+        .dropdown-content a:hover {
+            background-color: var(--md-link-hover);
+            color: var(--md-primary);
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background-color: var(--md-surface-variant);
+            margin: 6px 0;
+        }
+
+        .stack-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        section {
+            background: var(--md-container);
+            padding: 12px 18px;
+            border-radius: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--md-primary);
+            margin-top: 0;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .link-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 2px;
+        }
+
+        .link-list a {
+            text-decoration: none;
+            color: var(--md-on-surface);
+            font-size: 0.82rem;
+            transition: all 0.1s ease;
+            display: block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .link-list a:hover {
+            background-color: var(--md-link-hover);
+            color: var(--md-primary);
+            padding-left: 10px;
+            font-weight: 500;
+        }
+
+        .admin-section {
+            background: var(--md-surface-variant);
+            opacity: 0.9;
+        }
+
+        /* 検索窓のスタイル */
+        .search-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: var(--md-container);
+            padding: 6px 12px;
+            border-radius: 24px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            border: 1px solid var(--md-surface-variant);
+        }
+        .search-box:focus-within {
+            border-color: var(--md-primary);
+            box-shadow: 0 0 0 1px var(--md-primary);
+        }
+        .search-icon {
+            font-size: 1rem;
+            margin-right: 8px;
+            user-select: none;
+        }
+        .search-box form {
+            display: flex;
+            width: 100%;
+            align-items: center;
+        }
+        .search-box input[type="text"] {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: var(--md-on-surface);
+            font-size: 0.9rem;
+            padding: 4px 0;
+            outline: none;
+            font-family: inherit;
+        }
+        .search-box button {
+            background: transparent;
+            border: none;
+            color: var(--md-primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 12px;
+            transition: background 0.2s;
+        }
+        .search-box button:hover {
+            background: var(--md-link-hover);
+        }
+
+        /* モーダル共通 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--md-container);
+            color: var(--md-on-surface);
+            padding: 20px;
+            border-radius: 12px;
+            width: 95%;
+            max-width: 650px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--md-surface-variant);
+            padding-bottom: 10px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--md-primary);
+        }
+
+        .close-btn {
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: var(--md-on-surface);
+        }
+
+        .menu-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .menu-btn {
+            background: var(--md-surface-variant);
+            color: var(--md-on-surface);
+            border: 1px solid var(--md-primary);
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+        }
+
+        .menu-btn:hover {
+            background: var(--md-primary);
+            color: var(--md-container);
+        }
+
+        .edit-section-box {
+            background: var(--md-bg);
+            border: 1px solid var(--md-surface-variant);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .edit-section-box h4 {
+            margin: 0 0 10px 0;
+            color: var(--md-primary);
+        }
+
+        .edit-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        .edit-row input[type="text"] {
+            flex: 1;
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid var(--md-surface-variant);
+            background: var(--md-container);
+            color: var(--md-on-surface);
+            font-size: 0.85rem;
+        }
+
+        .action-sm-btn {
+            background: var(--md-surface-variant);
+            border: 1px solid var(--md-primary);
+            color: var(--md-on-surface);
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .action-sm-btn.danger {
+            background: #ffcccc;
+            color: #990000;
+            border-color: #ff9999;
+        }
+
+        .add-btn {
+            background: var(--md-primary);
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-top: 5px;
+        }
+
+        .save-btn {
+            background: var(--md-primary);
+            color: #fff;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 600px) {
+            .link-list { grid-template-columns: 1fr 1fr; }
+            .search-container { grid-template-columns: 1fr; gap: 8px; }
+            .edit-row { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1 id="page-title">Start Page for Tablet</h1>
+        <div class="header-controls">
+            <a id="btn-simple-bookmark" href="#" class="chip"><span>🔖</span> Simple Bookmark</a>
+
+            <div class="dropdown">
+                <div class="chip"><span>🔖</span> その他頻用 ▼</div>
+                <div class="dropdown-content" id="dropdown-menu-container">
+                    <!-- JSONから動的生成 -->
+                </div>
+            </div>
+
+            <button id="btn-settings" class="header-icon-btn" title="設定">⚙️</button>
+        </div>
+    </header>
+
+    <div class="stack-grid">
+        <div class="search-container">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <form action="https://www.google.co.jp/search" method="get" target="_blank">
+                    <input type="text" name="q" placeholder="Google 検索..." required autocomplete="off">
+                    <button type="submit">検索</button>
+                </form>
+            </div>
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <form action="https://www.bing.com/search" method="get" target="_blank">
+                    <input type="text" name="q" placeholder="Copilotにて検索..." required autocomplete="off">
+                    <input type="hidden" name="showconv" value="1">
+                    <button type="submit">検索</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="stack-grid-sections">
+            <!-- JSONから動的生成 -->
+        </div>
+    </div>
+</div>
+
+<!-- 設定メニューモーダル -->
+<div class="modal-overlay" id="settings-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>⚙️ 設定</h3>
+            <button class="close-btn" id="close-settings">✕</button>
+        </div>
+        <div class="menu-list">
+            <button class="menu-btn" id="btn-open-editor">✏️ 全リンクデータの編集・新規カラム追加</button>
+            <button class="menu-btn" id="btn-toggle-theme">🌙/☀️ テーマ切り替え</button>
+            <input type="file" id="import-file" accept=".json" style="display: none;">
+            <button class="menu-btn" id="btn-import">📂 JSONを読み込み (インポート)</button>
+            <button class="menu-btn" id="btn-export">💾 JSONを書き出し (エクスポート)</button>
+        </div>
+    </div>
+</div>
+
+<!-- データ編集モーダル -->
+<div class="modal-overlay" id="editor-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>✏️ リンクデータの編集</h3>
+            <button class="close-btn" id="close-editor">✕</button>
+        </div>
+        <div id="editor-form-container"></div>
+        <button class="save-btn" id="btn-save-editor">保存してキャッシュを更新</button>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'start_page_tablet_cache_v1';
+    let currentData = null;
+
+    const settingsModal = document.getElementById('settings-modal');
+    const editorModal = document.getElementById('editor-modal');
+    
+    document.getElementById('btn-settings').addEventListener('click', () => settingsModal.style.display = 'flex');
+    document.getElementById('close-settings').addEventListener('click', () => settingsModal.style.display = 'none');
+    document.getElementById('close-editor').addEventListener('click', () => editorModal.style.display = 'none');
+
+    // テーマ切替
+    document.getElementById('btn-toggle-theme').addEventListener('click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDark) {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+        }
+    });
+
+    if ((localStorage.getItem('theme') || 'light') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+
+    // 右端ウインドウポップアップ開口用補助関数
+    function openRightWindow(url) {
+        var w = 500;
+        var h = 600;
+        var l = window.screen.width - w - 10;
+        var t = 10;
+        window.open(url, 'chargingCalc', 'width=' + w + ',height=' + h + ',left=' + l + ',top=' + t + ',scrollbars=yes,resizable=yes');
+    }
+
+    // 描画処理
+    function renderPage(data) {
+        currentData = data;
+
+        if (data.title) {
+            document.getElementById('page-title').textContent = data.title;
+        }
+
+        // 1. ヘッダー「Simple Bookmark」リンク
+        if (data.simple_bookmark_url) {
+            document.getElementById('btn-simple-bookmark').href = data.simple_bookmark_url;
+        }
+
+        // 2. プルダウンメニューの描画
+        const dropdownContainer = document.getElementById('dropdown-menu-container');
+        dropdownContainer.innerHTML = '';
+        if (data.dropdown_menu) {
+            data.dropdown_menu.forEach(item => {
+                if (item.type === 'divider') {
+                    const div = document.createElement('div');
+                    div.className = 'dropdown-divider';
+                    dropdownContainer.appendChild(div);
+                } else if (item.type === 'link') {
+                    const a = document.createElement('a');
+                    a.href = item.url;
+                    a.innerHTML = `<span>${item.icon || ''}</span> ${item.label}`;
+                    dropdownContainer.appendChild(a);
+                }
+            });
+        }
+
+        // 3. セクション（カラム）の描画
+        const gridContainer = document.getElementById('stack-grid-sections');
+        gridContainer.innerHTML = '';
+        if (data.sections) {
+            data.sections.forEach(sectionData => {
+                const sec = document.createElement('section');
+                if (sectionData.is_admin) sec.className = 'admin-section';
+
+                const h2 = document.createElement('h2');
+                h2.innerHTML = `<span class="title-icon">${sectionData.icon || ''}</span>${sectionData.title}`;
+                sec.appendChild(h2);
+
+                const ul = document.createElement('ul');
+                ul.className = 'link-list';
+                if (sectionData.links) {
+                    sectionData.links.forEach(link => {
+                        const li = document.createElement('li');
+                        const a = document.createElement('a');
+                        a.href = link.url;
+                        a.textContent = link.label;
+                        
+                        if (link.popup) {
+                            a.onclick = function(e) {
+                                e.preventDefault();
+                                openRightWindow(this.href);
+                                return false;
+                            };
+                        }
+                        
+                        li.appendChild(a);
+                        ul.appendChild(li);
+                    });
+                }
+                sec.appendChild(ul);
+                gridContainer.appendChild(sec);
+            });
+        }
+    }
+
+    // 初期化
+    async function initPageData() {
+        let cachedData = localStorage.getItem(STORAGE_KEY);
+        if (cachedData) {
+            try {
+                renderPage(JSON.parse(cachedData));
+                return;
+            } catch (e) {}
+        }
+
+        try {
+            const response = await fetch('./json_tablet.json');
+            const data = await response.json();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data, null, 2));
+            renderPage(data);
+        } catch (error) {
+            console.error('JSON初期読み込み失敗:', error);
+        }
+    }
+
+    // インポート・エクスポート
+    document.getElementById('btn-import').addEventListener('click', () => document.getElementById('import-file').click());
+    document.getElementById('import-file').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                const newData = JSON.parse(evt.target.result);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(newData, null, 2));
+                renderPage(newData);
+                settingsModal.style.display = 'none';
+                alert('JSONファイルを読み込み、キャッシュを更新しました。');
+            } catch (err) {
+                alert('無効なJSONファイルです。');
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    document.getElementById('btn-export').addEventListener('click', () => {
+        const cachedData = localStorage.getItem(STORAGE_KEY);
+        if (!cachedData) return;
+        const blob = new Blob([cachedData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'json_tablet.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    // 編集モーダルフォーム生成
+    document.getElementById('btn-open-editor').addEventListener('click', () => {
+        if (!currentData) return;
+        const container = document.getElementById('editor-form-container');
+        container.innerHTML = '';
+
+        // ページタイトル & Simple Bookmark URL
+        const hBox = document.createElement('div');
+        hBox.className = 'edit-section-box';
+        hBox.innerHTML = `<h4>ヘッダー基本設定</h4>
+            <div class="edit-row"><label>ページタイトル:</label><input type="text" id="edit-title" value="${currentData.title || ''}"></div>
+            <div class="edit-row"><label>Simple Bookmark URL:</label><input type="text" id="edit-bm-url" value="${currentData.simple_bookmark_url || ''}"></div>`;
+        container.appendChild(hBox);
+
+        // プルダウンメニュー編集
+        const ddBox = document.createElement('div');
+        ddBox.className = 'edit-section-box';
+        ddBox.innerHTML = `<h4>その他頻用 (プルダウン)</h4>`;
+        const ddList = document.createElement('div');
+        
+        (currentData.dropdown_menu || []).forEach(item => {
+            if (item.type === 'link') {
+                const row = document.createElement('div');
+                row.className = 'edit-row dd-row';
+                row.innerHTML = `<input type="text" class="dd-icon" value="${item.icon || ''}" placeholder="アイコン" style="max-width: 60px;">
+                                 <input type="text" class="dd-label" value="${item.label || ''}" placeholder="ラベル">
+                                 <input type="text" class="dd-url" value="${item.url || ''}" placeholder="URL">
+                                 <button type="button" class="action-sm-btn danger" onclick="this.parentElement.remove()">削除</button>`;
+                ddList.appendChild(row);
+            }
+        });
+        ddBox.appendChild(ddList);
+        const addDdBtn = document.createElement('button');
+        addDdBtn.type = 'button';
+        addDdBtn.className = 'add-btn';
+        addDdBtn.textContent = '+ プルダウン項目追加';
+        addDdBtn.onclick = () => {
+            const row = document.createElement('div');
+            row.className = 'edit-row dd-row';
+            row.innerHTML = `<input type="text" class="dd-icon" placeholder="アイコン" style="max-width: 60px;">
+                             <input type="text" class="dd-label" placeholder="ラベル">
+                             <input type="text" class="dd-url" placeholder="URL">
+                             <button type="button" class="action-sm-btn danger" onclick="this.parentElement.remove()">削除</button>`;
+            ddList.appendChild(row);
+        };
+        ddBox.appendChild(addDdBtn);
+        container.appendChild(ddBox);
+
+        // セクション・リンク編集
+        const secBox = document.createElement('div');
+        secBox.className = 'edit-section-box';
+        secBox.innerHTML = `<h4>セクション（カラム）一覧</h4>`;
+        const secListContainer = document.createElement('div');
+
+        function renderSectionEditor() {
+            secListContainer.innerHTML = '';
+            (currentData.sections || []).forEach((sec, sIndex) => {
+                const sDiv = document.createElement('div');
+                sDiv.style.border = '1px dashed var(--md-primary)';
+                sDiv.style.padding = '8px';
+                sDiv.style.marginBottom = '10px';
+                sDiv.style.borderRadius = '6px';
+                sDiv.className = 'sec-item-box';
+
+                sDiv.innerHTML = `
+                    <div class="edit-row">
+                        <input type="text" class="sec-icon" value="${sec.icon || ''}" placeholder="アイコン" style="max-width: 50px;">
+                        <input type="text" class="sec-title" value="${sec.title || ''}" placeholder="セクション名">
+                        <label><input type="checkbox" class="sec-admin" ${sec.is_admin ? 'checked' : ''}> 自宅専用</label>
+                        <button type="button" class="action-sm-btn danger" onclick="this.closest('.sec-item-box').remove()">セクション削除</button>
+                    </div>
+                    <div class="sec-links-list"></div>
+                `;
+                const linksListEl = sDiv.querySelector('.sec-links-list');
+                (sec.links || []).forEach(l => {
+                    const lRow = document.createElement('div');
+                    lRow.className = 'edit-row link-row';
+                    lRow.innerHTML = `<input type="text" class="l-label" value="${l.label || ''}" placeholder="タイトル">
+                                      <input type="text" class="l-url" value="${l.url || ''}" placeholder="URL">
+                                      <label><input type="checkbox" class="l-popup" ${l.popup ? 'checked' : ''}> 右窓</label>
+                                      <button type="button" class="action-sm-btn danger" onclick="this.parentElement.remove()">削除</button>`;
+                    linksListEl.appendChild(lRow);
+                });
+
+                const addLinkBtn = document.createElement('button');
+                addLinkBtn.type = 'button';
+                addLinkBtn.className = 'add-btn';
+                addLinkBtn.textContent = '+ リンク追加';
+                addLinkBtn.onclick = () => {
+                    const lRow = document.createElement('div');
+                    lRow.className = 'edit-row link-row';
+                    lRow.innerHTML = `<input type="text" class="l-label" placeholder="タイトル">
+                                      <input type="text" class="l-url" placeholder="URL">
+                                      <label><input type="checkbox" class="l-popup"> 右窓</label>
+                                      <button type="button" class="action-sm-btn danger" onclick="this.parentElement.remove()">削除</button>`;
+                    linksListEl.appendChild(lRow);
+                };
+                sDiv.appendChild(addLinkBtn);
+                secListContainer.appendChild(sDiv);
+            });
+        }
+        renderSectionEditor();
+        secBox.appendChild(secListContainer);
+
+        const addSecBtn = document.createElement('button');
+        addSecBtn.type = 'button';
+        addSecBtn.className = 'add-btn';
+        addSecBtn.style.background = '#2a9d8f';
+        addSecBtn.textContent = '+ 新規セクション追加';
+        addSecBtn.onclick = () => {
+            currentData.sections.push({ title: "新規セクション", icon: "📁", links: [] });
+            renderSectionEditor();
+        };
+        secBox.appendChild(addSecBtn);
+        container.appendChild(secBox);
+
+        settingsModal.style.display = 'none';
+        editorModal.style.display = 'flex';
+    });
+
+    // 保存処理
+    document.getElementById('btn-save-editor').addEventListener('click', () => {
+        if (!currentData) return;
+
+        currentData.title = document.getElementById('edit-title').value;
+        currentData.simple_bookmark_url = document.getElementById('edit-bm-url').value;
+
+        // プルダウン保存
+        const newDd = [];
+        document.querySelectorAll('.dd-row').forEach(row => {
+            const icon = row.querySelector('.dd-icon').value;
+            const label = row.querySelector('.dd-label').value;
+            const url = row.querySelector('.dd-url').value;
+            if (label && url) {
+                newDd.push({ type: "link", icon, label, url });
+            }
+        });
+        currentData.dropdown_menu = newDd;
+
+        // セクション保存
+        const newSections = [];
+        document.querySelectorAll('.sec-item-box').forEach(sBox => {
+            const icon = sBox.querySelector('.sec-icon').value;
+            const title = sBox.querySelector('.sec-title').value;
+            const is_admin = sBox.querySelector('.sec-admin').checked;
+            const links = [];
+            sBox.querySelectorAll('.link-row').forEach(lRow => {
+                const label = lRow.querySelector('.l-label').value;
+                const url = lRow.querySelector('.l-url').value;
+                const popup = lRow.querySelector('.l-popup').checked;
+                if (label && url) {
+                    links.push({ label, url, ...(popup ? { popup: true } : {}) });
+                }
+            });
+            newSections.push({ title, icon, ...(is_admin ? { is_admin: true } : {}), links });
+        });
+        currentData.sections = newSections;
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData, null, 2));
+        renderPage(currentData);
+        editorModal.style.display = 'none';
+        alert('変更を保存し、キャッシュを更新しました。');
+    });
+
+    document.addEventListener('DOMContentLoaded', initPageData);
+</script>
+
+</body>
+</html>
